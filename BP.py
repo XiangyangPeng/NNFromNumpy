@@ -7,6 +7,7 @@ Created on Sun Jun  2 10:01:32 2019
 
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 '''
 -----name rules-----------------
 variable name:inputLayers
@@ -93,6 +94,8 @@ def backPropagation(net,samplePre,sampleTar,eta):
             layer_fy=layer_y.copy()
             layer_fy[np.where(layer_y<0)]=layer_a
             layer_fy[np.where(layer_y>=0)]=1
+        elif(net[layer_i]['actifun']=='linear'):
+            layer_fy=1
         if layer_i==layer_n-1:
             sigma_i=(sampleTar-samplePre[layer_i]['z'])*layer_fy
         else:
@@ -197,6 +200,8 @@ def predict(net,sampleIn,mode):
                 layer_a=net[layer_i]['LRa']
                 index=np.where(layer_z<0)
                 layer_z[index]=layer_z[index]*layer_a
+            elif(net[layer_i]['actifun']=='linear'):
+                layer_z=layer_y
             #除输出层外，增加一个输出单元为偏置单元
             if(layer_i<layer_n-1):
                 layer_z=np.append(layer_z,1)
@@ -241,7 +246,7 @@ def predict(net,sampleIn,mode):
 #            for layer_i in range(layer_n-1):
 #                net['w'][1:]=dweight
 #    return mse
-def optimizer(net,sample,epoches,batch_size,eta):
+def optimizer(net,_sample,epoches,batch_size,eta):
     '''
     args
     net:A list of dictionary-[{'w':np.array(),'actifun':string,('a':float)},{},...]
@@ -250,13 +255,18 @@ def optimizer(net,sample,epoches,batch_size,eta):
     epoches,batch_size,eta
     '''
     layer_n=len(net)
-    sample_n=len(sample[0])
+    sample_n=len(_sample[0])
     mse=[]
     for epoch_i in range(epoches):
+        #shuffle the sampleIn and sampleTar to achieve random split
+        indexes=np.array(range(sample_n))
+        random.shuffle(indexes)
+        sample=[_sample[0][indexes],_sample[1][indexes]]
+        
         for batch_i in range(int(sample_n/batch_size)):
             mse_i=0
             for train_i in range(batch_size):
-                sample_i=batch_size*batch_i+train_i
+                sample_i=batch_size*batch_i+train_i                
                 sampleIn=sample[0][sample_i]
                 sampleTar=sample[1][sample_i]
                 samplePre=predict(net,sampleIn,'train')
@@ -282,6 +292,8 @@ def initNet(sampleInDim):
     
 '''
 如果要拟合一个非线性的函数，Leaky-ReLU并不是一个好的选择。
+训练时样本应该随机分组，如果按照固定的顺序来，可能会造成训练效果的上下波动
+在回归问题中，激活函数必须谨慎选择，要保证输出结果的取值范围与所要拟合的数据的范围相当
 '''            
 if __name__=='__main__':
     data_dim=1
@@ -292,6 +304,7 @@ if __name__=='__main__':
     net=initNet(data_dim)
     #隐藏层 权值的初始化不能太大，否则会无法收敛
     addLayer(net=net,neuron_n=10,init_w=0.1,actifun='sigmoid')
+    addLayer(net=net,neuron_n=10,init_w=0.1,actifun='sigmoid')
 #    addLayer(net,5,0.1,0.3)
 #    addLayer(net,10,0.1,0.2)
 #    addLayer(net,5,0.1,0.1)
@@ -299,7 +312,7 @@ if __name__=='__main__':
 #    addLayer(net,5,0.1,0.1)
 #    addLayer(net,3,0.1,0.1)
     #输出层
-    addLayer(net=net,neuron_n=1,init_w=1,actifun='LeakyReLU')
+    addLayer(net=net,neuron_n=1,init_w=1,actifun='linear')
     #addLayer(net,1,0.1,0.3)
     
     #数据生成,3.,4.,6.,7.,9.
@@ -308,16 +321,16 @@ if __name__=='__main__':
     sampleTar=np.array([-1.,2.,4.,6.,3.,7.,9.])
     sample=[sampleIn,sampleTar]
     '''
-    sampleIn=np.linspace(0,10,num=1000)
+    sampleIn=np.linspace(0,20,num=500)
     #sampleTar=np.power(sampleIn,2)
     #sampleTar=sampleIn
-    sampleTar=np.sin(sampleIn)
+    sampleTar=np.sin(sampleIn)*10
     sample=[sampleIn,sampleTar]
     
     #训练
     epoches=50
     batch_size=20
-    eta=0.01#不当的学习率会导致无法收敛，试着把它调大一点就会发现这个情况
+    eta=0.001#不当的学习率会导致无法收敛，试着把它调大一点就会发现这个情况
     mse=optimizer(net,sample,epoches,batch_size,eta)
     plt.plot(mse)
     plt.show()
@@ -327,7 +340,7 @@ if __name__=='__main__':
     sampleTestIn=np.linspace(1,5.3,num=testnum)
     #sampleTestTar=np.power(sampleTestIn,2)
     #sampleTestTar=sampleTestIn
-    sampleTestTar=np.sin(sampleTestIn)
+    sampleTestTar=np.sin(sampleTestIn)*10
     samplePreTar=[]
     testmse=0
     pre=predict(net,sampleTestIn,'test')
@@ -340,3 +353,4 @@ if __name__=='__main__':
     
     plt.plot(sampleTestIn,sampleTestTar)
     plt.plot(sampleTestIn,samplePreTar)    
+    
